@@ -1,125 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tetris with Hold</title>
+    <title>Tetris Master</title>
     <style>
-        /* SECTION 1: STYLES (The looks) */
-        body { background: #202028; color: #fff; font-family: sans-serif; text-align: center; display: flex; flex-direction: column; align-items: center; }
-        .game-container { display: flex; gap: 20px; align-items: flex-start; margin-top: 20px; }
-        canvas { border: solid 2px #fff; background-color: #000; }
-        .side-panel { display: flex; flex-direction: column; gap: 10px; }
+        body { 
+            background: #202028; 
+            color: #fff; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .game-container { 
+            display: flex; 
+            gap: 30px; 
+            align-items: flex-start; 
+            background: #333;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        canvas { 
+            border: solid 4px #444; 
+            background-color: #000; 
+        }
+        .side-panel { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            width: 120px;
+        }
+        .label { font-weight: bold; color: #aaa; margin-bottom: 5px; }
+        #score { font-size: 24px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>Tetris</h1>
+    <h1>TETRIS</h1>
     <div id="score">Score: 0</div>
 
     <div class="game-container">
         <div class="side-panel">
-            <div>HOLD</div>
+            <div class="label">HOLD (C)</div>
             <canvas id="hold" width="100" height="100"></canvas>
+            <div style="margin-top: 20px; font-size: 0.8em; color: #888;">
+                Arrows: Move<br>
+                Up: Rotate<br>
+                Down: Drop<br>
+                C: Hold
+            </div>
         </div>
 
         <canvas id="tetris" width="240" height="400"></canvas>
-        
-        <div class="side-panel">
-            <div>NEXT</div>
-            </div>
     </div>
 
     <script>
-        /* SECTION 3: LOGIC (The brain) */
-        
-        // 1. Setup Main Canvas
         const canvas = document.getElementById('tetris');
         const context = canvas.getContext('2d');
         context.scale(20, 20);
 
-        // 2. Setup Hold Canvas
         const holdCanvas = document.getElementById('hold');
         const holdContext = holdCanvas.getContext('2d');
         holdContext.scale(20, 20);
 
-        // 3. New Variables for Hold
-        let holdPiece = null;
-        let canHold = true;
-
-        // 4. Piece & Matrix logic (The functions I gave you earlier)
+        // 1. Piece Definitions
         function createPiece(type) {
-            if (type === 'T') return [[0, 1, 0], [1, 1, 1], [0, 0, 0]];
-            if (type === 'O') return [[2, 2], [2, 2]];
-            if (type === 'L') return [[0, 3, 0], [0, 3, 0], [0, 3, 3]];
-            if (type === 'J') return [[0, 4, 0], [0, 4, 0], [4, 4, 0]];
-            if (type === 'I') return [[0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0]];
+            if (type === 'I') return [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]];
+            if (type === 'L') return [[0, 2, 0], [0, 2, 0], [0, 2, 2]];
+            if (type === 'J') return [[0, 3, 0], [0, 3, 0], [3, 3, 0]];
+            if (type === 'O') return [[4, 4], [4, 4]];
+            if (type === 'Z') return [[5, 5, 0], [0, 5, 5], [0, 0, 0]];
             if (type === 'S') return [[0, 6, 6], [6, 6, 0], [0, 0, 0]];
-            if (type === 'Z') return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];
+            if (type === 'T') return [[0, 7, 0], [7, 7, 7], [0, 0, 0]];
         }
 
         const colors = [null, '#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'];
 
-        // 5. The HOLD Function logic
-        function playerHold() {
-            if (!canHold) return;
-
-            if (holdPiece === null) {
-                holdPiece = player.matrix;
-                playerReset(); 
-            } else {
-                const temp = player.matrix;
-                player.matrix = holdPiece;
-                holdPiece = temp;
-                player.pos.y = 0;
-                player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
-            }
-            canHold = false;
-            drawHold();
+        // 2. Logic Functions
+        function createMatrix(w, h) {
+            const matrix = [];
+            while (h--) matrix.push(new Array(w).fill(0));
+            return matrix;
         }
 
-        function drawHold() {
-            holdContext.fillStyle = '#000';
-            holdContext.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
-            if (holdPiece) {
-                drawMatrix(holdPiece, {x: 1, y: 1}, holdContext);
-            }
-        }
-
-        // 6. Movement and Collision Logic
         function collide(arena, player) {
             const [m, o] = [player.matrix, player.pos];
             for (let y = 0; y < m.length; ++y) {
                 for (let x = 0; x < m[y].length; ++x) {
-                    if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) return true;
+                    if (m[y][x] !== 0 && (arena[y + o.y] && arena[y + o.y][x + o.x]) !== 0) {
+                        return true;
+                    }
                 }
             }
             return false;
         }
 
-        function drawMatrix(matrix, offset, ctx = context) {
-            matrix.forEach((row, y) => {
+        function merge(arena, player) {
+            player.matrix.forEach((row, y) => {
                 row.forEach((value, x) => {
                     if (value !== 0) {
-                        ctx.fillStyle = colors[value];
-                        ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+                        arena[y + player.pos.y][x + player.pos.x] = value;
                     }
                 });
             });
         }
-
-        function playerReset() {
-            const pieces = 'ILJOTSZ';
-            player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
-            player.pos.y = 0;
-            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
-            canHold = true; // REFRESH HOLD ABILITY
-            if (collide(arena, player)) {
-                arena.forEach(row => row.fill(0));
-                player.score = 0;
-            }
-        }
-
-        // (Include rotation, drop, and arena sweep logic here...)
-        // [Simplified for space - keep your existing rotate/drop/sweep functions!]
 
         function rotate(matrix, dir) {
             for (let y = 0; y < matrix.length; ++y) {
@@ -146,38 +134,132 @@
             }
         }
 
-        // 7. Input Controls
-        document.addEventListener('keydown', event => {
-            if (event.keyCode === 37) player.pos.x--; // Left
-            else if (event.keyCode === 39) player.pos.x++; // Right
-            else if (event.keyCode === 40) player.pos.y++; // Down (Soft drop)
-            else if (event.keyCode === 38) playerRotate(1); // Up (Rotate)
-            else if (event.keyCode === 67) playerHold();    // C (Hold)
-            
-            // Re-check collisions after manual move
+        function playerDrop() {
+            player.pos.y++;
             if (collide(arena, player)) {
-                 // reverse movement logic would go here
+                player.pos.y--;
+                merge(arena, player);
+                playerReset();
+                arenaSweep();
+                updateScore();
             }
-        });
+            dropCounter = 0;
+        }
 
-        // Initialize Game
-        const arena = Array.from({length: 20}, () => Array(12).fill(0));
-        const player = { pos: {x: 0, y: 0}, matrix: null, score: 0 };
+        function playerMove(dir) {
+            player.pos.x += dir;
+            if (collide(arena, player)) {
+                player.pos.x -= dir;
+            }
+        }
+
+        function playerHold() {
+            if (!canHold) return;
+            
+            if (holdPiece === null) {
+                holdPiece = player.matrix;
+                playerReset();
+            } else {
+                const temp = player.matrix;
+                player.matrix = holdPiece;
+                holdPiece = temp;
+                player.pos.y = 0;
+                player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+            }
+            canHold = false;
+            drawHold();
+        }
+
+        function playerReset() {
+            const pieces = 'ILJOTSZ';
+            player.matrix = createPiece(pieces[pieces.length * Math.random() | 0]);
+            player.pos.y = 0;
+            player.pos.x = (arena[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+            canHold = true; // Unlock hold for new piece
+            
+            if (collide(arena, player)) {
+                arena.forEach(row => row.fill(0));
+                player.score = 0;
+                updateScore();
+            }
+        }
+
+        function arenaSweep() {
+            let rowCount = 1;
+            outer: for (let y = arena.length - 1; y > 0; --y) {
+                for (let x = 0; x < arena[y].length; ++x) {
+                    if (arena[y][x] === 0) continue outer;
+                }
+                const row = arena.splice(y, 1)[0].fill(0);
+                arena.unshift(row);
+                ++y;
+                player.score += rowCount * 10;
+                rowCount *= 2;
+            }
+        }
+
+        // 3. Drawing Functions
+        function draw() {
+            context.fillStyle = '#000';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            drawMatrix(arena, {x: 0, y: 0}, context);
+            drawMatrix(player.matrix, player.pos, context);
+        }
+
+        function drawHold() {
+            holdContext.fillStyle = '#000';
+            holdContext.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+            if (holdPiece) {
+                drawMatrix(holdPiece, {x: 1, y: 1}, holdContext);
+            }
+        }
+
+        function drawMatrix(matrix, offset, ctx) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        ctx.fillStyle = colors[value];
+                        ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+                    }
+                });
+            });
+        }
+
+        function updateScore() {
+            document.getElementById('score').innerText = "Score: " + player.score;
+        }
+
+        // 4. Game Loop & Initialization
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        let holdPiece = null;
+        let canHold = true;
 
         function update(time = 0) {
-            // Your animation loop (draw, requestAnimationFrame, etc.)
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                playerDrop();
+            }
             draw();
             requestAnimationFrame(update);
         }
 
-        function draw() {
-            context.fillStyle = '#000';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            drawMatrix(arena, {x: 0, y: 0});
-            drawMatrix(player.matrix, player.pos);
-        }
+        const arena = createMatrix(12, 20);
+        const player = { pos: {x: 0, y: 0}, matrix: null, score: 0 };
+
+        document.addEventListener('keydown', event => {
+            if (event.keyCode === 37) playerMove(-1);        // Left
+            else if (event.keyCode === 39) playerMove(1);   // Right
+            else if (event.keyCode === 40) playerDrop();    // Down
+            else if (event.keyCode === 38) playerRotate(1); // Up (Rotate)
+            else if (event.keyCode === 67) playerHold();    // C (Hold)
+        });
 
         playerReset();
+        updateScore();
         update();
     </script>
 </body>
